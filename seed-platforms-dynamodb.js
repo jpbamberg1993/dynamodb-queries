@@ -3,7 +3,7 @@ const { v4: uuid } = require('uuid')
 const { DynamoDBClient, BatchWriteItemCommand } = require("@aws-sdk/client-dynamodb")
 const { marshall, unmarshall } = require("@aws-sdk/util-dynamodb")
 
-class GenreProcessor {
+class PlatformProcessor {
 	tables = new Map([
 		['dev', 'game-hub-user-api-dev'],
 		['int', 'game-hub-user-api-int'],
@@ -25,22 +25,25 @@ class GenreProcessor {
 	}
 
 	async process() {
-		const rawgGenres = await this.fetchGenresFromRawg()
-		const genres = rawgGenres.map(g => this.mapRawgGenresToGenres(g))
-		await this.saveGenresToDynamo(genres)
+		const rawgplatforms = await this.fetchplatformsFromRawg()
+		const platforms = rawgplatforms.map(g => this.mapRawgplatformsToplatforms(g))
+		const splitIndex = Math.ceil(platforms.length / 2)
+		const [first, second] = [platforms.slice(0, splitIndex), platforms.slice(splitIndex)]
+		await this.saveplatformsToDynamo(first)
+		await this.saveplatformsToDynamo(second)
 	}
 
-	async fetchGenresFromRawg() {
+	async fetchplatformsFromRawg() {
 		const params = new URLSearchParams()
 		params.set('key', '36d790888755494d956479f67b742e58')
-		const rawgGenres = await this.makeRequest(params)
-		return rawgGenres
+		const rawgplatforms = await this.makeRequest(params)
+		return rawgplatforms
 	}
 
-	async saveGenresToDynamo(genres) {
+	async saveplatformsToDynamo(platforms) {
 		const params = {
 			RequestItems: {
-				[this.table]: genres.map(g => {
+				[this.table]: platforms.map(g => {
 					return {
 						PutRequest: {
 							Item: marshall(g, { removeUndefinedValues: true }),
@@ -51,29 +54,33 @@ class GenreProcessor {
 		}
 
 		try {
-			await this.docClient.send(new BatchWriteItemCommand(params))
+			const response = await this.docClient.send(new BatchWriteItemCommand(params))
+			console.log(response)
 		} catch (e) {
-			console.error(`--> error saving genres to dynamo`)
+			console.error(`--> error saving platforms to dynamo`)
 			console.error(e)
 		}
 	}
 
-	mapRawgGenresToGenres(rawgGenre) {
+	mapRawgplatformsToplatforms(rawgplatform) {
 		return {
 			id: uuid(),
-			entityType: 'Genre',
-			sourceId: rawgGenre.id,
-			name: rawgGenre.name,
-			slug: rawgGenre.slug,
-			gamesCount: rawgGenre.games_count,
-			imageBackground: rawgGenre.image_background,
+			entityType: 'Platform',
+			sourceId: rawgplatform.id,
+			name: rawgplatform.name,
+			slug: rawgplatform.slug,
+			gamesCount: rawgplatform.games_count,
+			imageBackground: rawgplatform.image_background,
+			image: rawgplatform.image,
+			yearStart: rawgplatform.year_start,
+			yearEnd: rawgplatform.year_end,
 		}
 	}
 
 	async makeRequest(params) {
 		return new Promise((resolve, reject) => {
 			https.get(
-				`https://api.rawg.io/api/genres?${params.toString()}`,
+				`https://api.rawg.io/api/platforms?${params.toString()}`,
 				(res) => {
 					let data = ''
 
@@ -87,7 +94,7 @@ class GenreProcessor {
 					})
 				}).on('error', (err) => {
 					console.error(err)
-					reject(new Error('Could not fetch genres'))
+					reject(new Error('Could not fetch platforms'))
 				})
 		})
 	}
@@ -102,8 +109,8 @@ if (env !== 'dev' && env !== 'int') {
 
 console.log(`--> fetching data for the following environment: ${env}`)
 
-const genreProcessor = new GenreProcessor(env)
-genreProcessor
+const platformProcessor = new PlatformProcessor(env)
+platformProcessor
 	.process()
 	.then(() => console.log(`--> success!`))
 	.catch((err) => console.error(err))

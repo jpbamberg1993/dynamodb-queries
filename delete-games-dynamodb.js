@@ -1,16 +1,16 @@
 const { DynamoDBClient, QueryCommand, DeleteItemCommand } = require("@aws-sdk/client-dynamodb")
 const { marshall, unmarshall } = require("@aws-sdk/util-dynamodb")
 
-const dynamoDB = new DynamoDBClient({
-	region: 'localhost',
-	endpoint: 'http://localhost:8000',
-})
-
 // const dynamoDB = new DynamoDBClient({
-// 	region: 'us-east-1',
+// 	region: 'localhost',
+// 	endpoint: 'http://localhost:8000',
 // })
 
-const tableName = `game-hub-user-api-dev`
+const dynamoDB = new DynamoDBClient({
+	region: 'us-east-1',
+})
+
+const tableName = `game-hub-user-api-int`
 
 const params = {
 	TableName: tableName,
